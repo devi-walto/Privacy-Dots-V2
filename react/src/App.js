@@ -1,0 +1,47 @@
+/*
+ * App.js — Root React Component
+ * --------------------------------
+ * This is the entry point for the React frontend.
+ * Every page and component in the app starts here.
+ *
+ * Current state: Sprint 1 placeholder
+ * This page confirms the React container is running and
+ * reachable via Nginx. The actual dashboard UI will be
+ * built in a later sprint.
+ *
+ * Works with:
+ *   - nginx/nginx.conf — proxies all non-api requests here
+ *   - django/event_handler/views.py — will fetch event data from here
+ */
+
+function App() {
+  return (
+    <div style={{ padding: '40px', fontFamily: 'monospace' }}>
+
+      <h1>Privacy Dots V2</h1>
+      <h2>React Container is Running</h2>
+
+      <hr />
+
+      <h3>Container Info</h3>
+      <p>Service: React Frontend</p>
+      <p>Port: 3000</p>
+      <p>Status: Online</p>
+
+      <hr />
+
+      <h3>Architecture</h3>
+      <p>React → Nginx (port 80) → Django (port 8000) → PostgreSQL</p>
+      <p>ESP32 → Mosquitto (port 1883) → Django → Ntfy</p>
+
+      <hr />
+
+      <p style={{ color: 'gray' }}>
+        Sprint 1 Placeholder — Dashboard UI coming in later sprint
+      </p>
+
+    </div>
+  );
+}
+
+export default App;
