@@ -34,6 +34,13 @@ function App() {
       <p>React → Nginx (port 80) → Django (port 8000) → PostgreSQL</p>
       <p>ESP32 → Mosquitto (port 1883) → Django → Ntfy</p>
 
+
+      <h3> Test Cases</h3>
+
+      <p> "open http://localhost" - Nginx is reachable and proxying React</p>
+        <p> "open or curl http://localhost/api/events/" - django api reachable through nginx</p>
+      <p> "open http://localhost:8080" - Test that ntfy is running </p>
+
       <hr />
 
       <p style={{ color: 'gray' }}>
