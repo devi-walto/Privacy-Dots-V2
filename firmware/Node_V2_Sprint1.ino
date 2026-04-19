@@ -7,6 +7,9 @@ first push: new file, arranged everything and added a lot of comments for unders
 
 #include <WiFi.h>                 // WiFi library
 #include <HTTPClient.h>
+#include <esp_wpa2.h>
+
+
 
 // ================================================================
 // NETWORK CONFIG
