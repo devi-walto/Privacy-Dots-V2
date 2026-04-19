@@ -21,16 +21,29 @@ https://docs.djangoproject.com/en/5.1/topics/db/models/
 """
 from django.db import models
 
+class Device(models.Model):
+    # Added the Device model according to your spec
+    node_id = models.CharField(max_length=255, unique=True)
+    name = models.CharField(max_length=255)
+    location = models.CharField(max_length=255, null=True, blank=True)
+    registered_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.node_id})"
 
 class MotionEvent(models.Model):
     # The ID of the ESP32 node that detected motion e.g. 'PDN#123456'
     node_id = models.CharField(max_length=255)
 
+    # Added the foreign key relationship to Device
+    device = models.ForeignKey(Device, on_delete=models.CASCADE, null=True, blank=True)
+
     # Physical location of the node e.g. 'Front Door', 'Hallway'
     # null=True allows the database column to be empty
     # blank=True allows the form field to be empty
     location = models.CharField(max_length=255, null=True, blank=True)
-
+    
     # Timestamp automatically set to the current time when the record is created
     # auto_now_add=True means this field is never manually set
     detected_at = models.DateTimeField(auto_now_add=True)

@@ -18,7 +18,8 @@ Note: To access the admin panel you need a superuser account.
 Create one with: python manage.py createsuperuser
 """
 from django.contrib import admin
-from .models import MotionEvent
+from .models import MotionEvent, Device
 
-# Registering MotionEvent makes it visible and manageable in the admin panel
+# Registering these models makes them visible and manageable in the admin panel
+admin.site.register(Device)
 admin.site.register(MotionEvent)
