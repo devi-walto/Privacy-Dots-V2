@@ -63,7 +63,7 @@ int  counter = 0;
 
 // Attempt a single WiFi connection with a retry limit.
 // Returns true if connected, false if all retries exhausted (30 second timeout).
-bool connectWiFi() {
+bool connectWiFi() { // - connectes to the pi ap at boot and returns true or false depending on whether it succeeded.
   Serial.print("Connecting to network: ");
   Serial.println(ssid);
 
@@ -90,7 +90,7 @@ bool connectWiFi() {
 // Try to reconnect reconnectRetries times before restarting the board.
 // V1 went straight to ESP.restart() after 30s — this tries gracefully first
 // to avoid unnecessary reboots on brief signal drops.
-void reconnectWiFi() {
+void reconnectWiFi() { // - tries to reconnect up to 10 times gracefully before rebooting the board.
   Serial.println("WiFi lost — attempting graceful reconnect...");  //if we lost connection, retry
 
   for (int i = 1; i <= reconnectRetries; i++) {
@@ -115,7 +115,7 @@ void reconnectWiFi() {
 // Motion event sender
 // ================================================================
 
-void sendMotionNotification() {
+void sendMotionNotification() { // - tries to reconnect up to 10 times gracefully before rebooting the board. 
   if (WiFi.status() != WL_CONNECTED) {
     // Can't send right now — flag it so we retry after reconnect
     motionPending = true;
@@ -156,7 +156,7 @@ void sendMotionNotification() {
 // Setup
 // ================================================================
 
-void setup() {
+void setup() { // - initializes the board, sets the PIR pin, and connects to WiFi on startup.
   Serial.begin(115200);
   delay(10);
   Serial.println();
@@ -175,7 +175,7 @@ void setup() {
 // Loop
 // ================================================================
 
-void loop() {
+void loop() { // - continuously checks Wifi status and PIR sensor, reconnecting or sending motion events as needed. 
   unsigned long currentMillis = millis();
 
   // --- Check WiFi, reconnect gracefully if needed ---
