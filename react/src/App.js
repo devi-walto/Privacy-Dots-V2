@@ -31,8 +31,8 @@ function App() {
       <hr />
 
       <h3>Architecture</h3>
-      <p>React → Nginx (port 80) → Django (port 8000) → PostgreSQL</p>
-      <p>ESP32 → Mosquitto (port 1883) → Django → Ntfy</p>
+      <p> "React - Nginx (port 80) - Django (port 8000) - PostgreSQL" </p>
+      <p> "ESP32 - Mosquitto (port 1883) - Django - Ntfy" </p>
 
 
       <h3> Test Cases</h3>
