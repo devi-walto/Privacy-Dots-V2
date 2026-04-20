@@ -39,6 +39,10 @@ function App() {
 
       <p> "open http://localhost" - Nginx is reachable and proxying React</p>
         <p> "open or curl http://localhost/api/events/" - django api reachable through nginx</p>
+        <p> "open or curl http://localhost/api/motion/" - django api reachable through nginx</p> 
+      <p> "open http://localhost:8080" - Test that ntfy is running </p>
+      <p> " open http://localhost/admin/" - Test Django Admin page gives response" </p>
+      <p> "open http://localhost/api/ - Test api call Expect: Django response or Django 404  </p>
       <p> "open http://localhost:8080" - Test that ntfy is running </p>
 
       <h3> Run if changes made to django model</h3>
