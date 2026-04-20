@@ -41,6 +41,9 @@ function App() {
         <p> "open or curl http://localhost/api/events/" - django api reachable through nginx</p>
       <p> "open http://localhost:8080" - Test that ntfy is running </p>
 
+      <h3> Run if changes made to django model</h3>
+      <p>docker exec privacydots-django python manage.py makemigrations</p>
+      <p>docker exec privacydots-django python manage.py migrate</p>
       <hr />
 
       <p style={{ color: 'gray' }}>
