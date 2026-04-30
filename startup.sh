@@ -12,6 +12,26 @@ set -e
 # Service:
 #   /etc/systemd/system/privacydots.service
 
+# For this file to run on boot, you must:
+# 1. Create the service file at the path above
+# 2. Paste this or similar (make sure ExecStart is startup.sh dir):
+        # [Unit]
+        # Description=Privacy Dots Startup Service
+        # After=network.target
+
+        # [Service]
+        # ExecStart=/home/pi/privacy-dots-v2/startup.sh
+        # Restart=always
+        # User=root
+
+        # [Install]
+        # WantedBy=multi-user.target
+# 3. Enable the service so it runs on startup
+        # sudo systemctl daemon-reload
+        # sudo systemctl enable privacydots.service
+# 4. Make sure this script is executable (chmod +x startup.sh)
+
+
 
 ##################################### BEGIN SCRIPT ###################################
 
