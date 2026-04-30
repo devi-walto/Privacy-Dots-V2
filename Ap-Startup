@@ -1,3 +1,9 @@
+################## DEPRICATED! #######################
+# Now lives in Privacy-Dots-V2/startup.sh
+# Privacy-Dots-V2/startup.sh sets up network and then starts application containers
+
+
+
 sudo bash -c '
 set -e
 
