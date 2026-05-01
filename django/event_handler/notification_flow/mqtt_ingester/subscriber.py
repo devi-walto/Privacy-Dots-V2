@@ -44,7 +44,7 @@ def start_mqtt_subscriber() -> None:
     client = mqtt.Client()
 
     # mqtt library only needs finction name not params
-    # on_connect and on_message are explicitly required names in docs
+    # on_connect and on_message
     client.on_connect = on_connect
     client.on_message = on_message
 
@@ -52,4 +52,4 @@ def start_mqtt_subscriber() -> None:
 
     # connect to client instance
     client.connect(MQTT_HOST, MQTT_PORT, 60)
-    client.loop_forever()
+    client.loop_start()  # non-blocking
