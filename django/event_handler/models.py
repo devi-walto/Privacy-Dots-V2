@@ -51,3 +51,5 @@ class MotionEvent(models.Model):
     def __str__(self):
         # Controls how this object displays in the Django admin panel
         return f"{self.node_id} - {self.detected_at}"
+    
+    
