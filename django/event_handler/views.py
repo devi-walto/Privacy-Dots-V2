@@ -28,40 +28,67 @@ from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from .models import MotionEvent, Device
 
-# csrf_exempt disables Django's Cross Site Request Forgery protection for this view
-# Required because ESP32 nodes cannot generate CSRF tokens
 @csrf_exempt
 def motion_detected(request):
     """
     Receives a motion event POST request from an ESP32 node.
-    Automatically registers new devices and saves the event to the database.
+    Extracts nested telemetry, updates the device status, and saves the event history.
     """
     if request.method == 'POST':
         try:
             # Parse the JSON body from the incoming request
             data = json.loads(request.body)
+            
+            # 1. Extract Top-Level Fields
+            event_id = data.get('event_id')
             node_id = data.get('node_id')
+            device_name = data.get('device_name', f"Sensor {node_id}")
             location = data.get('location', 'Unknown')
+            event_type = data.get('event_type', 'motion')
+            motion = data.get('motion', True)
+            sensor_timestamp = data.get('timestamp')
+            timezone = data.get('timezone', 'UTC')
+            
+            # 2. Extract Nested Dictionaries safely (defaults to empty dict if missing)
+            connection = data.get('connection', {})
+            device_status = data.get('device_status', {})
+            
+            # Extract values from the nested dictionaries
+            interrupted = connection.get('interrupted', False)
+            signal_strength = connection.get('signal_strength')
+            battery = device_status.get('battery')
+            firmware = device_status.get('firmware_version')
 
-            # AUTOMATIC REGISTRATION LOGIC
-            # Checks if the device exists; if not, creates it.
-            device, created = Device.objects.get_or_create(
+            # 3. AUTOMATIC REGISTRATION & TELEMETRY UPDATE
+            # Uses update_or_create so the Device table always holds the LATEST battery/signal info
+            device, created = Device.objects.update_or_create(
                 node_id=node_id,
                 defaults={
-                    'name': f"Sensor {node_id}",
+                    'name': device_name,
                     'location': location,
+                    'battery': battery,
+                    'firmware_version': firmware,
+                    'signal_strength': signal_strength,
+                    'connection_interrupted': interrupted,
                     'is_active': True
                 }
             )
 
-            # Save the motion event and link it to the Device record
+            # 4. Save the motion event with point-in-time data
             event = MotionEvent.objects.create(
+                event_id=event_id,
                 device=device,
                 node_id=node_id,
-                location=location
+                location=location,
+                event_type=event_type,
+                motion=motion,
+                sensor_timestamp=sensor_timestamp,
+                timezone=timezone,
+                battery_at_event=battery,
+                signal_strength_at_event=signal_strength
             )
 
-            # Send push notification to Ntfy
+            # 5. Send push notification to Ntfy
             requests.post(
                 f"{settings.NTFY_URL}/{settings.NTFY_TOPIC}",
                 headers={"Title": "Motion Detected"},
@@ -70,12 +97,16 @@ def motion_detected(request):
 
             return JsonResponse({
                 'status': 'success', 
-                'event_id': event.id,
+                'db_id': event.id,
+                'sensor_event_id': event.event_id,
                 'device_registered': created
             }, status=200)
 
         except json.JSONDecodeError:
-            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON payload'}, status=400)
+        except Exception as e:
+            # Catch database integrity errors (like duplicate event_ids)
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     return JsonResponse({'status': 'error', 'message': 'Only POST requests allowed'}, status=405)
 

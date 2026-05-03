@@ -22,32 +22,44 @@ https://docs.djangoproject.com/en/5.1/topics/db/models/
 from django.db import models
 
 class Device(models.Model):
-    # Added the Device model according to your spec
     node_id = models.CharField(max_length=255, unique=True)
     name = models.CharField(max_length=255)
     location = models.CharField(max_length=255, null=True, blank=True)
     registered_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
+    
+    # Latest device status from the most recent payload
+    battery = models.IntegerField(null=True, blank=True)
+    firmware_version = models.CharField(max_length=50, null=True, blank=True)
+    signal_strength = models.IntegerField(null=True, blank=True)
+    connection_interrupted = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.name} ({self.node_id})"
 
+
 class MotionEvent(models.Model):
-    # The ID of the ESP32 node that detected motion e.g. 'PDN#123456'
-    node_id = models.CharField(max_length=255)
-
-    # Added the foreign key relationship to Device
+    # The specific ID provided by the sensor
+    event_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    
+    # Existing relationships
     device = models.ForeignKey(Device, on_delete=models.CASCADE, null=True, blank=True)
-
-    # Physical location of the node e.g. 'Front Door', 'Hallway'
-    # null=True allows the database column to be empty
-    # blank=True allows the form field to be empty
+    node_id = models.CharField(max_length=255)
     location = models.CharField(max_length=255, null=True, blank=True)
     
-    # Timestamp automatically set to the current time when the record is created
-    # auto_now_add=True means this field is never manually set
-    detected_at = models.DateTimeField(auto_now_add=True)
+    # Event specifics
+    event_type = models.CharField(max_length=100, default='motion')
+    motion = models.BooleanField(default=True)
+    
+    # Timing data
+    # sensor_timestamp is when the ESP32 logged it, detected_at is when Django received it
+    sensor_timestamp = models.DateTimeField(null=True, blank=True) 
+    timezone = models.CharField(max_length=50, null=True, blank=True)
+    detected_at = models.DateTimeField(auto_now_add=True) 
+    
+    # Point-in-time telemetry (what the battery/signal was during this specific event)
+    battery_at_event = models.IntegerField(null=True, blank=True)
+    signal_strength_at_event = models.IntegerField(null=True, blank=True)
 
     def __str__(self):
-        # Controls how this object displays in the Django admin panel
-        return f"{self.node_id} - {self.detected_at}"
+        return f"{self.node_id} - {self.sensor_timestamp or self.detected_at}"
