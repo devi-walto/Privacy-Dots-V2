@@ -20,8 +20,9 @@ set -e
         # After=network.target
 
         # [Service]
+        # Type=oneshot
         # ExecStart=/home/pi/privacy-dots-v2/startup.sh
-        # Restart=always
+        # RemainAfterExit=yes
         # User=root
 
         # [Install]
