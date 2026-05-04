@@ -26,50 +26,87 @@ import requests
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
-from .models import MotionEvent
+from .models import MotionEvent, Device
 
-
-# csrf_exempt disables Django's Cross Site Request Forgery protection for this view
-# Required because ESP32 nodes cannot generate CSRF tokens
-# In production this should be secured with token authentication instead
 @csrf_exempt
 def motion_detected(request):
     """
     Receives a motion event POST request from an ESP32 node.
-    Saves the event to the database and sends a push notification via Ntfy.
-
-    Expected JSON body:
-      {
-        "node_id": "PDN#123456",
-        "location": "Front Door"
-      }
+    Extracts nested telemetry, updates the device status, and saves the event history.
     """
     if request.method == 'POST':
         try:
             # Parse the JSON body from the incoming request
             data = json.loads(request.body)
+            
+            # 1. Extract Top-Level Fields
+            event_id = data.get('event_id')
             node_id = data.get('node_id')
+            device_name = data.get('device_name', f"Sensor {node_id}")
             location = data.get('location', 'Unknown')
+            event_type = data.get('event_type', 'motion')
+            motion = data.get('motion', True)
+            sensor_timestamp = data.get('timestamp')
+            timezone = data.get('timezone', 'UTC')
+            
+            # 2. Extract Nested Dictionaries safely (defaults to empty dict if missing)
+            connection = data.get('connection', {})
+            device_status = data.get('device_status', {})
+            
+            # Extract values from the nested dictionaries
+            interrupted = connection.get('interrupted', False)
+            signal_strength = connection.get('signal_strength')
+            battery = device_status.get('battery')
+            firmware = device_status.get('firmware_version')
 
-            # Save the motion event to PostgreSQL via the MotionEvent model
-            event = MotionEvent.objects.create(
+            # 3. AUTOMATIC REGISTRATION & TELEMETRY UPDATE
+            # Uses update_or_create so the Device table always holds the LATEST battery/signal info
+            device, created = Device.objects.update_or_create(
                 node_id=node_id,
-                location=location
+                defaults={
+                    'name': device_name,
+                    'location': location,
+                    'battery': battery,
+                    'firmware_version': firmware,
+                    'signal_strength': signal_strength,
+                    'connection_interrupted': interrupted,
+                    'is_active': True
+                }
             )
 
-            # Send push notification to Ntfy
-            # Ntfy forwards this to any subscribed device (phone, browser)
-            # NTFY_URL and NTFY_TOPIC come from settings.py which reads from .env
+            # 4. Save the motion event with point-in-time data
+            event = MotionEvent.objects.create(
+                event_id=event_id,
+                device=device,
+                node_id=node_id,
+                location=location,
+                event_type=event_type,
+                motion=motion,
+                sensor_timestamp=sensor_timestamp,
+                timezone=timezone,
+                battery_at_event=battery,
+                signal_strength_at_event=signal_strength
+            )
+
+            # 5. Send push notification to Ntfy
             requests.post(
                 f"{settings.NTFY_URL}/{settings.NTFY_TOPIC}",
                 headers={"Title": "Motion Detected"},
                 data=f"Motion detected at {location} (Node: {node_id})"
             )
 
-            return JsonResponse({'status': 'success', 'event_id': event.id}, status=200)
+            return JsonResponse({
+                'status': 'success', 
+                'db_id': event.id,
+                'sensor_event_id': event.event_id,
+                'device_registered': created
+            }, status=200)
 
         except json.JSONDecodeError:
-            return JsonResponse({'status': 'error', 'message': 'Invalid JSON'}, status=400)
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON payload'}, status=400)
+        except Exception as e:
+            # Catch database integrity errors (like duplicate event_ids)
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     return JsonResponse({'status': 'error', 'message': 'Only POST requests allowed'}, status=405)
 
@@ -77,37 +114,49 @@ def motion_detected(request):
 def get_events(request):
     """
     Returns the 50 most recent motion events as JSON.
-    Called by the React dashboard to display event history.
-
-    Returns JSON:
-      {
-        "events": [
-          {
-            "id": 1,
-            "node_id": "PDN#123456",
-            "location": "Front Door",
-            "detected_at": "2024-01-01T00:00:00"
-          },
-          ...
-        ]
-      }
+    Supports filtering by node_id via query parameter.
     """
     if request.method == 'GET':
-        # Query the 50 most recent events ordered by newest first
-        # The - before detected_at means descending order
-        events = MotionEvent.objects.all().order_by('-detected_at')[:50]
+        node_id = request.GET.get('node_id')
+        events = MotionEvent.objects.all()
 
-        # Convert each event object into a dictionary so it can be serialized to JSON
+        if node_id:
+            events = events.filter(node_id=node_id)
+
+        events = events.order_by('-detected_at')[:50]
+
         data = [
             {
                 'id': e.id,
                 'node_id': e.node_id,
                 'location': e.location,
-                # isoformat() converts the datetime to a standard string format
-                'detected_at': e.detected_at.isoformat()
+                'detected_at': e.detected_at.isoformat(),
+                'device_name': e.device.name if e.device else "Unregistered"
             }
             for e in events
         ]
         return JsonResponse({'events': data}, status=200)
+
+    return JsonResponse({'status': 'error', 'message': 'Only GET requests allowed'}, status=405)
+
+
+def get_devices(request):
+    """
+    Returns a list of all registered sensors and their current status.
+    Used for the device status dashboard.
+    """
+    if request.method == 'GET':
+        devices = Device.objects.all()
+        data = [
+            {
+                'node_id': d.node_id,
+                'name': d.name,
+                'location': d.location,
+                'is_active': d.is_active,
+                'registered_at': d.registered_at.isoformat()
+            }
+            for d in devices
+        ]
+        return JsonResponse({'devices': data}, status=200)
 
     return JsonResponse({'status': 'error', 'message': 'Only GET requests allowed'}, status=405)
