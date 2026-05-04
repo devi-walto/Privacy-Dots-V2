@@ -1,4 +1,11 @@
 """
+*** IMPORTANT ***
+If you change models.py:
+1. docker exec -it privacydots-django python manage.py makemigrations event_handler
+2. docker exec -it privacydots-django python manage.py migrate
+3. docker cp <container_path>/migrations/<file>.py ./django/event_handler/migrations/ (usually 'backend_container/' for us)
+4. git add + commit the migration file
+
 models.py — Database Table Definitions
 ----------------------------------------
 Models are Python classes that define your database tables.
