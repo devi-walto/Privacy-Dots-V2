@@ -1,38 +1,123 @@
-.App {
-  text-align: center;
+.app {
+  display: flex;
+  height: 100vh;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+.sidebar {
+  width: 200px;
+  background: #1e1e1e;
+  color: white;
   display: flex;
   flex-direction: column;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+/* Sensor buttons */
+.sensor-button {
+  margin-bottom: 8px;
+  padding: 10px;
+  background: #333;
+  border: none;
+  color: white;
+  cursor: pointer;
+}
+
+.sensor-button {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
+}
+
+.status {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.status.online {
+  background: limegreen;
+}
+
+.status.offline {
+  background: red;
+}
+
+
+
+.sensor-button:hover {
+  background: #555;
+}
+
+.add-button {
+  margin-top: auto;
+  padding: 10px;
+  background: #007bff;
+  border: none;
+  color: white;
+  cursor: pointer;
+}
+
+.settings-container {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.dropdown {
+  margin-top: 5px;
+  background: #222;
+  border: 1px solid #444;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdown button {
+  background: none;
+  border: none;
+  color: white;
+  padding: 5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dropdown button:hover {
+  background: #444;
+}
+
+.delete-btn {
+  background: none;
+  border: none;
+  color: red;
+  cursor: pointer;
+}
+
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.6);
+  display: flex;
   justify-content: center;
-  font-size: calc(10px + 2vmin);
+  align-items: center;
+}
+
+.modal {
+  background: #222;
+  padding: 20px;
+  border-radius: 8px;
   color: white;
 }
 
-.App-link {
-  color: #61dafb;
+.modal button {
+  margin-right: 10px;
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.main {
+  flex: 1;
+  padding: 20px;
 }
