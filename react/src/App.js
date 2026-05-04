@@ -14,48 +14,172 @@
  *   - django/event_handler/views.py — will fetch event data from here
  */
 
+
+import { useState, useEffect } from "react";
+import "./App.css";
+
 function App() {
+  // list of sensors
+  const [sensors, setSensors] = useState(() => {
+  const saved = localStorage.getItem("sensors");
+  return saved
+    ? JSON.parse(saved)
+    : [
+        { name: "All Sensors", status: "online" },
+        { name: "Sensor 1", status: "online" },
+        { name: "Sensor 2", status: "offline" },
+      ];
+  });
+
+  const [selectedSensor, setSelectedSensor] = useState("All Sensors");
+
+  const [sensorToDelete, setSensorToDelete] = useState(null);
+
+  const addSensor = () => {
+    const sensorNumber = sensors.length; 
+    const newSensor = {
+      name: `Sensor ${sensorNumber}`,
+      status: "offline"
+    };
+
+  setSensors([...sensors, newSensor]);
+  };
+
+  const [showSettings, setShowSettings] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem("sensors", JSON.stringify(sensors));
+  }, [sensors]);
+
+  const [logs, setLogs] = useState({
+  "Sensor 1": [
+    { message: "Motion detected", time: "2:14 PM" },
+    { message: "No motion", time: "2:20 PM" }
+  ],
+  "Sensor 2": [
+    { message: "Motion detected", time: "1:02 PM" }
+  ]
+  });
+  
+  const [deleteMode, setDeleteMode] = useState(false);
+
+  const deleteSensor = (sensorName) => {
+  // prevent deleting "All Sensors"
+  if (sensorName === "All Sensors") return;
+
+  const updatedSensors = sensors.filter(
+    (sensor) => sensor.name !== sensorName
+  );
+
+  setSensors(updatedSensors);
+
+  // reset selection if needed
+  if (selectedSensor === sensorName) {
+    setSelectedSensor("All Sensors");
+  }
+  };
+
+  const confirmDelete = () => {
+    if (!sensorToDelete) return;
+
+    const updatedSensors = sensors.filter(
+      (sensor) => sensor.name !== sensorToDelete
+    );
+
+    setSensors(updatedSensors);
+
+    if (selectedSensor === sensorToDelete) {
+      setSelectedSensor("All Sensors");
+    }
+
+    setSensorToDelete(null);
+  };
+
+  const cancelDelete = () => {
+    setSensorToDelete(null);
+  };
+
   return (
-    <div style={{ padding: '40px', fontFamily: 'monospace' }}>
+    <div className="app">
 
-      <h1>Privacy Dots V2</h1>
-      <h2>React Container is Running</h2>
+      <div className="settings-container">
+        <button onClick={() => setShowSettings(!showSettings)}>
+          ⚙️
+        </button>
 
-      <hr />
+        {showSettings && (
+          <div className="dropdown">
+            <button>Node Health Check</button>
+            <button>Add Host</button>
+            <button onClick={() => setDeleteMode(!deleteMode)}>
+              Delete Sensor
+            </button>
+          </div>
+        )}
+      </div>
+      
+      <div className="sidebar">
+        {sensors.map((sensor, index) => (
+          <button
+            key={index}
+            className="sensor-button"
+            onClick={() => setSelectedSensor(sensor.name)}
+          >
+            <span>{sensor.name}</span>
 
-      <h3>Container Info</h3>
-      <p>Service: React Frontend</p>
-      <p>Port: 3000</p>
-      <p>Status: Online</p>
+            {deleteMode ? (
+              <button
+                className="delete-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSensorToDelete(sensor.name);
+                }}
+              >
+                ❌
+              </button>
+            ) : (
+              <span className={`status ${sensor.status}`}></span>
+            )}
+          </button>
+        ))}
 
-      <hr />
+        <button className="add-button" onClick={addSensor}>
+          + Add Sensor
+        </button>
+      </div>
 
-      <h3>Architecture</h3>
-      <p> "React - Nginx (port 80) - Django (port 8000) - PostgreSQL" </p>
-      <p> "ESP32 - Mosquitto (port 1883) - Django - Ntfy" </p>
-
-
-      <h3> Test Cases</h3>
-
-      <p> "open http://localhost" - Nginx is reachable and proxying React</p>
-        <p> "open or curl http://localhost/api/events/" - django api reachable through nginx</p>
-        <p> "open or curl http://localhost/api/motion/" - django api reachable through nginx</p> 
-      <p> "open http://localhost:8080" - Test that ntfy is running </p>
-      <p> " open http://localhost/admin/" - Test Django Admin page gives response" </p>
-      <p> "open http://localhost/api/ - Test api call Expect: Django response or Django 404  </p>
-      <p> "open http://localhost:8080" - Test that ntfy is running </p>
-
-      <h3> Run if changes made to django model</h3>
-      <p>docker exec privacydots-django python manage.py makemigrations</p>
-      <p>docker exec privacydots-django python manage.py migrate</p>
-      <hr />
-
-      <p style={{ color: 'gray' }}>
-        Sprint 1 Placeholder — Dashboard UI coming in later sprint
-      </p>
-
+      <div className="main">
+        <h2>{selectedSensor}</h2>
+        <ul>
+          {(selectedSensor === "All Sensors"
+            ? Object.entries(logs).flatMap(([sensorName, sensorLogs]) =>
+                sensorLogs.map((log) => ({
+                  ...log,
+                  sensorName
+                }))
+              )
+            : (logs[selectedSensor] || []).map((log) => ({
+                ...log,
+                sensorName: selectedSensor
+              }))
+          ).map((log, index) => (
+            <li key={index}>
+              <strong>{log.sensorName}</strong>: {log.message} at {log.time}
+            </li>
+          ))}
+        </ul>
+      </div>
+      {sensorToDelete && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <p>Are you sure you want to delete {sensorToDelete}?</p>
+            <button onClick={confirmDelete}>Yes, Delete</button>
+            <button onClick={cancelDelete}>Cancel</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
+                               
 export default App;
