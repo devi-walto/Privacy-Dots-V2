@@ -71,3 +71,38 @@ def parse_motion_payload(raw_payload: bytes) -> dict[str, Any]:
         "connection_interrupted": connection_interrupted,
         "raw": data  # keep full payload for future use
     }
+
+
+def parse_pulse_payload(raw_payload: bytes) -> dict[str, Any]:
+    """Decode, validate, and normalize MQTT pulse payload."""
+
+    try:
+        data = json.loads(raw_payload.decode("utf-8"))
+    except Exception as error:
+        raise ValueError(f"Invalid payload format: {error}")
+
+    if not isinstance(data, dict):
+        raise ValueError("Payload must be a JSON object")
+
+    required_fields = ["node_id", "event_type", "timestamp"]
+    for field in required_fields:
+        if field not in data:
+            raise ValueError(f"Missing required field: {field}")
+
+    node_id = str(data["node_id"]).strip()
+    event_type = str(data["event_type"]).strip()
+    timestamp = str(data["timestamp"]).strip()
+
+    connection = data.get("connection", {})
+    device_status = data.get("device_status", {})
+
+    return {
+        "node_id": node_id,
+        "event_type": event_type,
+        "timestamp": timestamp,
+        "connection_interrupted": connection.get("interrupted", False),
+        "signal_strength": connection.get("signal_strength"),
+        "battery": device_status.get("battery"),
+        "firmware_version": device_status.get("firmware_version"),
+        "raw": data,
+    }
