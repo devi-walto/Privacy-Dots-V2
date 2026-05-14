@@ -25,7 +25,7 @@ function App() {
 
       <h3>Container Info</h3>
       <p>Service: React Frontend</p>
-      <p>Port: 3000</p>
+      <p>Port: 5173</p>
       <p>Status: Online</p>
 
       <hr />
@@ -42,7 +42,7 @@ function App() {
         <p> "open or curl http://localhost/api/motion/" - django api reachable through nginx</p> 
       <p> "open http://localhost:8080" - Test that ntfy is running </p>
       <p> " open http://localhost/admin/" - Test Django Admin page gives response" </p>
-      <p> "open http://localhost/api/ - Test api call Expect: Django response or Django 404  </p>
+      <p>"open http://localhost/api/" - Test API call. Expect: Django response or Django 404.</p>
       <p> "open http://localhost:8080" - Test that ntfy is running </p>
 
       <h3> Run if changes made to django model</h3>

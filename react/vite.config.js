@@ -15,6 +15,8 @@ export default defineConfig({
 
     // Explicitly run Vite on port 5173.
     // nginx will proxy frontend traffic to this port.
-    port: 5173
+    port: 5173,
+
+    allowedHosts: ['react', 'localhost']
   }
 })
