@@ -8,6 +8,11 @@ function formatTime(value) {
   return new Date(value).toLocaleString();
 }
 
+function formatClock(value) {
+  if (!value) return 'unknown time';
+  return new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
 function eventKey(event) {
   return event.event_id || event.id;
 }
@@ -21,6 +26,7 @@ function App() {
     'Notification' in window ? Notification.permission : 'unsupported'
   );
   const [dashboardAlerts, setDashboardAlerts] = useState([]);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [newNode, setNewNode] = useState({ node_id: '', name: '', location: '' });
   const seenEventIds = useRef(new Set());
 
@@ -97,6 +103,7 @@ function App() {
 
     if (response.ok) {
       setNewNode({ node_id: '', name: '', location: '' });
+      setShowAddForm(false);
       loadDashboard();
     }
   }
@@ -141,7 +148,7 @@ function App() {
           className={selectedNode === 'all' ? 'sensor-row selected' : 'sensor-row'}
           onClick={() => setSelectedNode('all')}
         >
-          <span>All sensors</span>
+          <span>All Sensors</span>
           <span className="status-dot online" />
           <strong>{devices.length}</strong>
         </button>
@@ -163,25 +170,34 @@ function App() {
           ))}
         </div>
 
-        <form className="add-node" onSubmit={addDevice}>
-          <h2>Add Node</h2>
-          <input
-            placeholder="node id"
-            value={newNode.node_id}
-            onChange={(event) => setNewNode({ ...newNode, node_id: event.target.value })}
-          />
-          <input
-            placeholder="name"
-            value={newNode.name}
-            onChange={(event) => setNewNode({ ...newNode, name: event.target.value })}
-          />
-          <input
-            placeholder="location"
-            value={newNode.location}
-            onChange={(event) => setNewNode({ ...newNode, location: event.target.value })}
-          />
-          <button className="primary-button" type="submit">Add sensor</button>
-        </form>
+        {showAddForm ? (
+          <form className="add-node open" onSubmit={addDevice}>
+            <h2>Add Node</h2>
+            <input
+              placeholder="node id"
+              value={newNode.node_id}
+              onChange={(event) => setNewNode({ ...newNode, node_id: event.target.value })}
+            />
+            <input
+              placeholder="name"
+              value={newNode.name}
+              onChange={(event) => setNewNode({ ...newNode, name: event.target.value })}
+            />
+            <input
+              placeholder="location"
+              value={newNode.location}
+              onChange={(event) => setNewNode({ ...newNode, location: event.target.value })}
+            />
+            <button className="primary-button" type="submit">Add Sensor</button>
+            <button className="cancel-button" type="button" onClick={() => setShowAddForm(false)}>
+              Cancel
+            </button>
+          </form>
+        ) : (
+          <button className="primary-button add-node-button" type="button" onClick={() => setShowAddForm(true)}>
+            Add Sensor
+          </button>
+        )}
       </aside>
 
       <section className="content">
@@ -194,17 +210,6 @@ function App() {
             ⚙
           </button>
         </header>
-
-        <section className="stats">
-          <div>
-            <span>Online</span>
-            <strong>{devices.filter((device) => device.is_online).length}</strong>
-          </div>
-          <div>
-            <span>Pending</span>
-            <strong>{devices.filter((device) => device.status === 'pending').length}</strong>
-          </div>
-        </section>
 
         {dashboardAlerts.length > 0 && (
           <section className="alert-stack">
@@ -245,17 +250,6 @@ function App() {
           </section>
         )}
 
-        <section className="stats health-stats">
-          <div>
-            <span>Total nodes</span>
-            <strong>{devices.length}</strong>
-          </div>
-          <div>
-            <span>Recent events</span>
-            <strong>{events.length}</strong>
-          </div>
-        </section>
-
         <section className="event-feed">
           <div className="feed-heading">
             <h2>Recent Activity</h2>
@@ -272,10 +266,9 @@ function App() {
               <div>
                 <p>
                   <strong>{event.device_name}:</strong> Motion detected
-                  {event.location ? ` at ${event.location}` : ''}
+                  {event.location ? ` at ${event.location}` : ''} at {formatClock(event.detected_at)}
                 </p>
               </div>
-              <time>{formatTime(event.detected_at)}</time>
             </article>
           ))}
         </section>
