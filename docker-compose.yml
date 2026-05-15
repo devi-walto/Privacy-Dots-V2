@@ -42,6 +42,18 @@ services:
       mosquitto:
         condition: service_started
 
+  mqtt-listener:
+    build: ./django
+    container_name: privacydots-mqtt-listener
+    env_file: .env
+    restart: unless-stopped
+    command: sh -c "python manage.py migrate && python manage.py run_mqtt_subscriber"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+
   react:
     build: ./react
     container_name: privacydots-react

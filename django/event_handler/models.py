@@ -29,10 +29,23 @@ https://docs.djangoproject.com/en/5.1/topics/db/models/
 from django.db import models
 
 class Device(models.Model):
+    STATUS_PENDING = 'pending'
+    STATUS_ACTIVE = 'active'
+    STATUS_DISABLED = 'disabled'
+    STATUS_REMOVED = 'removed'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_ACTIVE, 'Active'),
+        (STATUS_DISABLED, 'Disabled'),
+        (STATUS_REMOVED, 'Removed'),
+    ]
+
     node_id = models.CharField(max_length=255, unique=True)
     name = models.CharField(max_length=255)
     location = models.CharField(max_length=255, null=True, blank=True)
     registered_at = models.DateTimeField(auto_now_add=True)
+    last_seen = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     is_active = models.BooleanField(default=True)
     
     # Latest device status from the most recent payload
