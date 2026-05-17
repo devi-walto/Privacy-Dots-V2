@@ -1,4 +1,8 @@
 """
+
+If you change backend code:
+check top comment in models.py
+
 views.py — Request Handlers and Business Logic
 ------------------------------------------------
 Views are functions that receive an HTTP request and return an HTTP response.

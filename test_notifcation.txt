@@ -1,0 +1,32 @@
+docker exec -it privacydots-mosquitto mosquitto_pub \
+  -t privacydots/motion \
+  -q 1 \
+  -m '{
+    "event_id": "evt_test_001",
+    "node_id": "PDN#123456",
+    "device_name": "Front Door Sensor",
+    "location": "Front Door",
+    "event_type": "motion",
+    "motion": true,
+    "timestamp": "2026-01-15T14:32:10Z",
+    "timezone": "UTC",
+    "connection": {
+      "interrupted": false,
+      "signal_strength": -67
+    },
+    "device_status": {
+      "battery": 87,
+      "firmware_version": "1.0.3"
+    }
+  }'
+
+
+
+If broken run from root:
+
+docker exec -it privacydots-django python manage.py shell
+
+Then
+
+from event_handler.notification_flow.mqtt_ingester.subscriber import start_mqtt_subscriber
+start_mqtt_subscriber()

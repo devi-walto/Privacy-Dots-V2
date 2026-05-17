@@ -1,4 +1,11 @@
 """
+*** IMPORTANT ***
+If you change models.py:
+1. docker exec -it privacydots-django python manage.py makemigrations event_handler
+2. docker exec -it privacydots-django python manage.py migrate
+3. docker cp <container_path>/migrations/<file>.py ./django/event_handler/migrations/ (usually 'backend_container/' for us)
+4. git add + commit the migration file
+
 models.py — Database Table Definitions
 ----------------------------------------
 Models are Python classes that define your database tables.
@@ -62,4 +69,7 @@ class MotionEvent(models.Model):
     signal_strength_at_event = models.IntegerField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.node_id} - {self.sensor_timestamp or self.detected_at}"
+        # Controls how this object displays in the Django admin panel
+        return f"{self.node_id} - {self.detected_at}"
+    
+    

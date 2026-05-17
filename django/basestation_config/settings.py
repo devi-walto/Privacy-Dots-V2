@@ -123,8 +123,8 @@ MQTT_PORT = int(os.environ.get('MQTT_PORT', 1883))
 # Ntfy is the push notification service Django posts to when motion is detected
 # NTFY_URL and NTFY_TOPIC are read from .env
 # Django sends HTTP POST requests to NTFY_URL/NTFY_TOPIC when an event comes in
-NTFY_URL = os.environ.get('NTFY_URL')
-NTFY_TOPIC = os.environ.get('NTFY_TOPIC')
+NTFY_URL = os.getenv("NTFY_URL", "http://ntfy:80")
+NTFY_TOPIC = os.getenv("NTFY_TOPIC", "privacydots-alerts")
 
 # Password validation rules for user accounts
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
