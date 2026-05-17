@@ -17,7 +17,8 @@ EXPOSE 8000
 
 COPY . .
 
-# Start the container by first applying any pending database migrations
-# start the Django dev server on all network interfaces (0.0.0.0)
-#   containers like Nginx can reach it at django:8000.
-CMD ["sh", "-c", "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"]
+# Strip CRLF so the script runs on Linux (Windows checkouts often use CRLF)
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
+
+# repair_migrations handles stale Postgres volumes, then migrate, then runserver
+ENTRYPOINT ["sh", "entrypoint.sh"]
