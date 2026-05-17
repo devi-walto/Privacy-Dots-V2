@@ -117,3 +117,135 @@
   flex: 1;
   padding: 20px;
 }
+
+/* Tab bar at the top of the main panel: Overview / Statistics */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid #444;
+  margin-bottom: 16px;
+}
+
+.tab {
+  background: none;
+  border: none;
+  color: #bbb;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  border-bottom: 2px solid transparent;
+}
+
+.tab:hover {
+  color: white;
+}
+
+.tab.active {
+  color: white;
+  border-bottom-color: #007bff;
+}
+
+.event-log {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.event-log li {
+  padding: 6px 0;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.event-empty {
+  color: #888;
+  font-style: italic;
+}
+
+.events-error {
+  color: #ff8080;
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+/* Statistics view */
+.stat-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.stat-title {
+  margin: 0;
+  font-size: 16px;
+  color: #ddd;
+}
+
+.stat-chart {
+  width: 100%;
+  max-width: 600px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+}
+
+.stat-axis {
+  stroke: #888;
+  stroke-width: 1;
+}
+
+.stat-axis-label {
+  fill: #aaa;
+  font-size: 11px;
+}
+
+.stat-axis-title {
+  fill: #ddd;
+  font-size: 12px;
+}
+
+.stat-line {
+  fill: none;
+  stroke: #007bff;
+  stroke-width: 2;
+}
+
+.stat-point {
+  fill: #007bff;
+}
+
+.stat-bar {
+  fill: #007bff;
+}
+
+.stat-empty {
+  color: #888;
+  font-style: italic;
+}
+
+/* "Average Activation in 24 hrs" card under the line chart */
+.stat-card {
+  align-self: flex-start;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 16px 24px;
+  min-width: 240px;
+}
+
+.stat-card-label {
+  color: #aaa;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.stat-card-value {
+  color: white;
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.stat-card-sub {
+  color: #888;
+  font-size: 12px;
+  margin-top: 4px;
+}
