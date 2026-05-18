@@ -1,58 +1,61 @@
-/*
- * StatisticsView.jsx — Statistics tab for the dashboard
- * -------------------------------------------------------
- * Renders one of two views depending on which sensor is selected:
- *
- *   "All Sensors"  -> bar chart of total activations per node (last 24 h)
- *   single sensor  -> line chart of activation count per hour (last 24 h)
- *                     plus an "Average Activation in 24 hrs" summary card
- *
- * Charts use a shared layout (margins, ticks, grid) for consistent spacing.
- */
+// stats tab - line chart for one sensor, bar chart for all sensors
+// each "activation" is just counting motion events from the api
 
-const HOURS_IN_WINDOW = 24;
+const HOURS = 24;
 const MS_PER_HOUR = 60 * 60 * 1000;
 
-/** Shared SVG dimensions and margins (room for labels outside the plot). */
-const CHART = {
-  width: 640,
-  height: 300,
-  margin: { top: 32, right: 40, bottom: 64, left: 72 },
-  tickGap: 12,
-  titleGap: 20,
-};
+// svg layout (extra padding so numbers/labels aren't on top of the axes)
+const CHART_W = 640;
+const CHART_H = 320;
+const PAD_LEFT = 88;
+const PAD_RIGHT = 52;
+const PAD_TOP = 36;
+const PAD_BOTTOM = 80;
 
-function getPlot() {
-  const { width, height, margin } = CHART;
-  const plotW = width - margin.left - margin.right;
-  const plotH = height - margin.top - margin.bottom;
+const Y_LABEL_GAP = 20; // space between y-axis line and tick numbers
+const X_LABEL_INSET = 12; // keep -24h / now away from chart edges
+const X_TICK_BELOW = 24; // time labels below the x-axis
+const X_TITLE_BELOW = 52; // "Time" / "Sensors" under those labels
+
+function getPlotArea() {
+  const left = PAD_LEFT;
+  const top = PAD_TOP;
+  const width = CHART_W - PAD_LEFT - PAD_RIGHT;
+  const height = CHART_H - PAD_TOP - PAD_BOTTOM;
   return {
-    left: margin.left,
-    top: margin.top,
-    right: margin.left + plotW,
-    bottom: margin.top + plotH,
-    width: plotW,
-    height: plotH,
+    left,
+    top,
+    right: left + width,
+    bottom: top + height,
+    width,
+    height,
   };
 }
 
-/** Y scale with headroom so peaks are not clipped against the top edge. */
-function yScale(maxCount, plot) {
-  const dataMax = Math.max(0, maxCount);
-  const displayMax =
-    dataMax === 0 ? 1 : Math.max(dataMax + 1, Math.ceil(dataMax * 1.12));
-  const toY = (value) =>
-    plot.bottom - (value / displayMax) * plot.height;
-  const ticks =
-    displayMax <= 1
-      ? [0, 1]
-      : [0, Math.ceil(displayMax / 2), displayMax];
-  return { displayMax, toY, ticks: [...new Set(ticks)] };
+// figure out y axis max and helper to convert count -> pixel
+function setupYAxis(maxCount, plot) {
+  let yMax = 1;
+  if (maxCount > 0) {
+    yMax = Math.max(maxCount + 1, Math.ceil(maxCount * 1.12));
+  }
+
+  function countToY(count) {
+    return plot.bottom - (count / yMax) * plot.height;
+  }
+
+  let tickValues = [0, Math.ceil(yMax / 2), yMax];
+  if (yMax <= 1) tickValues = [0, 1];
+
+  return { countToY, tickValues };
 }
 
-function ChartGrid({ plot, ticks, toY }) {
+// grid + y axis labels + bottom axis line (used by both charts)
+function ChartFrame({ plot, tickValues, countToY, yTitle }) {
+  const labelX = plot.left - Y_LABEL_GAP;
+  const yTitleX = PAD_LEFT / 2 - 4;
+
   return (
-    <g className="stat-grid" aria-hidden="true">
+    <>
       <rect
         x={plot.left}
         y={plot.top}
@@ -60,27 +63,35 @@ function ChartGrid({ plot, ticks, toY }) {
         height={plot.height}
         className="stat-plot-area"
       />
-      {ticks.map((t) => (
-        <line
-          key={t}
-          x1={plot.left}
-          y1={toY(t)}
-          x2={plot.right}
-          y2={toY(t)}
-          className="stat-grid-line"
-        />
+
+      {tickValues.map((val) => (
+        <g key={val}>
+          <line
+            x1={plot.left}
+            y1={countToY(val)}
+            x2={plot.right}
+            y2={countToY(val)}
+            className="stat-grid-line"
+          />
+          <line
+            x1={plot.left - 6}
+            y1={countToY(val)}
+            x2={plot.left}
+            y2={countToY(val)}
+            className="stat-axis-tick"
+          />
+          <text
+            x={labelX}
+            y={countToY(val)}
+            className="stat-axis-label"
+            textAnchor="end"
+            dominantBaseline="middle"
+          >
+            {val}
+          </text>
+        </g>
       ))}
-    </g>
-  );
-}
 
-function YAxis({ plot, ticks, toY, title }) {
-  const { margin, tickGap } = CHART;
-  const labelX = plot.left - tickGap;
-  const titleX = margin.left / 2;
-
-  return (
-    <g className="stat-y-axis">
       <line
         x1={plot.left}
         y1={plot.top}
@@ -88,285 +99,240 @@ function YAxis({ plot, ticks, toY, title }) {
         y2={plot.bottom}
         className="stat-axis"
       />
-      {ticks.map((t) => (
-        <g key={t}>
-          <line
-            x1={plot.left - 6}
-            y1={toY(t)}
-            x2={plot.left}
-            y2={toY(t)}
-            className="stat-axis-tick"
-          />
-          <text
-            x={labelX}
-            y={toY(t)}
-            className="stat-axis-label"
-            textAnchor="end"
-            dominantBaseline="middle"
-          >
-            {t}
-          </text>
-        </g>
-      ))}
+      <line
+        x1={plot.left}
+        y1={plot.bottom}
+        x2={plot.right}
+        y2={plot.bottom}
+        className="stat-axis"
+      />
+
       <text
-        x={titleX}
+        x={yTitleX}
         y={plot.top + plot.height / 2}
         className="stat-axis-title"
         textAnchor="middle"
-        dominantBaseline="middle"
-        transform={`rotate(-90 ${titleX} ${plot.top + plot.height / 2})`}
+        transform={`rotate(-90 ${yTitleX} ${plot.top + plot.height / 2})`}
       >
-        {title}
+        {yTitle}
       </text>
-    </g>
+    </>
   );
 }
 
-function XAxisBaseline({ plot }) {
-  return (
-    <line
-      x1={plot.left}
-      y1={plot.bottom}
-      x2={plot.right}
-      y2={plot.bottom}
-      className="stat-axis"
-    />
-  );
-}
+// split events into 24 buckets, one per hour
+function countPerHour(events) {
+  const now = Date.now();
+  const buckets = [];
 
-function buildHourlyBuckets(events, now = Date.now()) {
-  const buckets = Array.from({ length: HOURS_IN_WINDOW }, (_, i) => ({
-    hoursAgo: HOURS_IN_WINDOW - 1 - i,
-    bucketEnd: now - (HOURS_IN_WINDOW - 1 - i) * MS_PER_HOUR,
-    count: 0,
-  }));
+  for (let i = 0; i < HOURS; i++) {
+    buckets.push({ count: 0, hoursAgo: HOURS - 1 - i });
+  }
 
-  for (const event of events) {
-    const t = new Date(event.detected_at).getTime();
-    const ageHours = Math.floor((now - t) / MS_PER_HOUR);
-    if (ageHours < 0 || ageHours >= HOURS_IN_WINDOW) continue;
-    const idx = HOURS_IN_WINDOW - 1 - ageHours;
-    buckets[idx].count += 1;
+  for (const ev of events) {
+    const t = new Date(ev.detected_at).getTime();
+    const hoursAgo = Math.floor((now - t) / MS_PER_HOUR);
+    if (hoursAgo < 0 || hoursAgo >= HOURS) continue;
+    const slot = HOURS - 1 - hoursAgo;
+    buckets[slot].count += 1;
   }
 
   return buckets;
 }
 
-function ActivationLineChart({ buckets }) {
-  const plot = getPlot();
-  const maxCount = Math.max(0, ...buckets.map((b) => b.count));
-  const { toY, ticks } = yScale(maxCount, plot);
+function LineChart({ buckets }) {
+  const plot = getPlotArea();
+  let maxCount = 0;
+  for (const b of buckets) {
+    if (b.count > maxCount) maxCount = b.count;
+  }
+
+  const { countToY, tickValues } = setupYAxis(maxCount, plot);
   const stepX = plot.width / (buckets.length - 1);
-  const toX = (i) => plot.left + i * stepX;
 
-  const points = buckets.map((b, i) => `${toX(i)},${toY(b.count)}`).join(" ");
-  const clipId = "stat-line-clip";
-  const tickY = plot.bottom + CHART.tickGap + 4;
-  const timeTitleY = plot.bottom + CHART.titleGap + 22;
+  let pointString = "";
+  for (let i = 0; i < buckets.length; i++) {
+    const x = plot.left + i * stepX;
+    const y = countToY(buckets[i].count);
+    pointString += x + "," + y + " ";
+  }
 
-  return (
-    <svg
-      className="stat-chart"
-      viewBox={`0 0 ${CHART.width} ${CHART.height}`}
-      role="img"
-      aria-label="Line chart of activations per hour over the last 24 hours"
-    >
-      <defs>
-        <clipPath id={clipId}>
-          <rect
-            x={plot.left}
-            y={plot.top}
-            width={plot.width}
-            height={plot.height}
-          />
-        </clipPath>
-      </defs>
-
-      <ChartGrid plot={plot} ticks={ticks} toY={toY} />
-      <YAxis plot={plot} ticks={ticks} toY={toY} title="Activation" />
-      <XAxisBaseline plot={plot} />
-
-      <g className="stat-x-axis">
-        {[
-          { x: plot.left, label: "-24h", anchor: "start" },
-          { x: plot.left + plot.width / 2, label: "-12h", anchor: "middle" },
-          { x: plot.right, label: "now", anchor: "end" },
-        ].map(({ x, label, anchor }) => (
-          <text
-            key={label}
-            x={x}
-            y={tickY}
-            className="stat-axis-label"
-            textAnchor={anchor}
-            dominantBaseline="hanging"
-          >
-            {label}
-          </text>
-        ))}
-        <text
-          x={plot.left + plot.width / 2}
-          y={timeTitleY}
-          className="stat-axis-title"
-          textAnchor="middle"
-          dominantBaseline="hanging"
-        >
-          Time
-        </text>
-      </g>
-
-      <g clipPath={`url(#${clipId})`}>
-        <polyline points={points} className="stat-line" />
-        {buckets.map((b, i) => (
-          <circle
-            key={i}
-            cx={toX(i)}
-            cy={toY(b.count)}
-            r={4}
-            className="stat-point"
-          >
-            <title>{`${b.hoursAgo}h ago: ${b.count} activations`}</title>
-          </circle>
-        ))}
-      </g>
-    </svg>
-  );
-}
-
-function ActivationBarChart({ counts }) {
-  const plot = getPlot();
-  const entries = Object.entries(counts);
-  const maxCount = Math.max(0, ...entries.map(([, c]) => c));
-  const { toY, ticks } = yScale(maxCount, plot);
-  const slotW = entries.length > 0 ? plot.width / entries.length : plot.width;
-  const barW = Math.max(12, slotW * 0.55);
-  const categoryY = plot.bottom + CHART.tickGap + 6;
-  const sensorsTitleY = plot.bottom + CHART.titleGap + 24;
-  const clipId = "stat-bar-clip";
+  const timeLabelsY = plot.bottom + X_TICK_BELOW;
+  const timeTitleY = plot.bottom + X_TITLE_BELOW;
+  const xLeft = plot.left + X_LABEL_INSET;
+  const xRight = plot.right - X_LABEL_INSET;
 
   return (
-    <svg
-      className="stat-chart"
-      viewBox={`0 0 ${CHART.width} ${CHART.height}`}
-      role="img"
-      aria-label="Bar chart of activations per sensor over the last 24 hours"
-    >
-      <defs>
-        <clipPath id={clipId}>
-          <rect
-            x={plot.left}
-            y={plot.top}
-            width={plot.width}
-            height={plot.height}
-          />
-        </clipPath>
-      </defs>
+    <svg className="stat-chart" viewBox={`0 0 ${CHART_W} ${CHART_H}`}>
+      <ChartFrame
+        plot={plot}
+        tickValues={tickValues}
+        countToY={countToY}
+        yTitle="Activation"
+      />
 
-      <ChartGrid plot={plot} ticks={ticks} toY={toY} />
-      <YAxis plot={plot} ticks={ticks} toY={toY} title="Activation" />
-      <XAxisBaseline plot={plot} />
-
+      <text x={xLeft} y={timeLabelsY} className="stat-axis-label" textAnchor="start">
+        -24h
+      </text>
       <text
         x={plot.left + plot.width / 2}
-        y={sensorsTitleY}
+        y={timeLabelsY}
+        className="stat-axis-label"
+        textAnchor="middle"
+      >
+        -12h
+      </text>
+      <text x={xRight} y={timeLabelsY} className="stat-axis-label" textAnchor="end">
+        now
+      </text>
+      <text
+        x={plot.left + plot.width / 2}
+        y={timeTitleY}
         className="stat-axis-title"
         textAnchor="middle"
-        dominantBaseline="hanging"
       >
-        Sensors
+        Time
       </text>
 
-      <g clipPath={`url(#${clipId})`}>
-        {entries.map(([name, count], i) => {
-          const slotCenter = plot.left + i * slotW + slotW / 2;
-          const x = slotCenter - barW / 2;
-          const y = toY(count);
-          const h = plot.bottom - y;
-          return (
-            <rect
-              key={name}
-              x={x}
-              y={y}
-              width={barW}
-              height={h}
-              rx={2}
-              className="stat-bar"
-            >
-              <title>{`${name}: ${count} activations (24h)`}</title>
-            </rect>
-          );
-        })}
-      </g>
+      <polyline points={pointString.trim()} className="stat-line" />
 
-      {entries.map(([name], i) => {
-        const slotCenter = plot.left + i * slotW + slotW / 2;
+      {buckets.map((b, i) => {
+        const x = plot.left + i * stepX;
+        const y = countToY(b.count);
         return (
-          <text
-            key={`${name}-label`}
-            x={slotCenter}
-            y={categoryY}
-            className="stat-axis-label stat-bar-label"
-            textAnchor="middle"
-            dominantBaseline="hanging"
-          >
-            {name}
-          </text>
+          <circle key={i} cx={x} cy={y} r={4} className="stat-point">
+            <title>
+              {b.hoursAgo}h ago: {b.count}
+            </title>
+          </circle>
         );
       })}
     </svg>
   );
 }
 
-function AverageActivationCard({ total }) {
-  const perHour = total / HOURS_IN_WINDOW;
+function BarChart({ countsBySensor }) {
+  const plot = getPlotArea();
+  const names = Object.keys(countsBySensor);
+
+  let maxCount = 0;
+  for (const name of names) {
+    if (countsBySensor[name] > maxCount) maxCount = countsBySensor[name];
+  }
+
+  const { countToY, tickValues } = setupYAxis(maxCount, plot);
+  const slotWidth = plot.width / names.length;
+  const barWidth = Math.max(12, slotWidth * 0.55);
+  const labelY = plot.bottom + X_TICK_BELOW;
+  const titleY = plot.bottom + X_TITLE_BELOW;
+
   return (
-    <div className="stat-card">
-      <div className="stat-card-label">Average Activation in 24 hrs</div>
-      <div className="stat-card-value">{total}</div>
-      <div className="stat-card-sub">
-        ~{perHour.toFixed(1)} activations / hour
-      </div>
-    </div>
+    <svg className="stat-chart" viewBox={`0 0 ${CHART_W} ${CHART_H}`}>
+      <ChartFrame
+        plot={plot}
+        tickValues={tickValues}
+        countToY={countToY}
+        yTitle="Activation"
+      />
+
+      <text
+        x={plot.left + plot.width / 2}
+        y={titleY}
+        className="stat-axis-title"
+        textAnchor="middle"
+      >
+        Sensors
+      </text>
+
+      {names.map((name, i) => {
+        const count = countsBySensor[name];
+        const centerX = plot.left + i * slotWidth + slotWidth / 2;
+        const barX = centerX - barWidth / 2;
+        const barTop = countToY(count);
+        const barHeight = plot.bottom - barTop;
+
+        return (
+          <g key={name}>
+            <rect
+              x={barX}
+              y={barTop}
+              width={barWidth}
+              height={barHeight}
+              rx={2}
+              className="stat-bar"
+            >
+              <title>
+                {name}: {count}
+              </title>
+            </rect>
+            <text
+              x={centerX}
+              y={labelY}
+              className="stat-axis-label stat-bar-label"
+              textAnchor="middle"
+            >
+              {name}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
   );
 }
 
 function StatisticsView({ events, selectedSensor }) {
   const now = Date.now();
-  const cutoff = now - HOURS_IN_WINDOW * MS_PER_HOUR;
+  const dayAgo = now - HOURS * MS_PER_HOUR;
 
-  const recent = events.filter(
-    (e) => new Date(e.detected_at).getTime() >= cutoff
-  );
+  // only look at events from last 24 hours
+  const recent = [];
+  for (const ev of events) {
+    if (new Date(ev.detected_at).getTime() >= dayAgo) {
+      recent.push(ev);
+    }
+  }
 
+  // all sensors view - bar chart
   if (selectedSensor === "All Sensors") {
     const counts = {};
-    for (const e of recent) {
-      const name = e.device_name || `Node ${e.node_id}`;
-      counts[name] = (counts[name] || 0) + 1;
+    for (const ev of recent) {
+      const name = ev.device_name || "Node " + ev.node_id;
+      if (!counts[name]) counts[name] = 0;
+      counts[name] += 1;
     }
+
+    const hasData = Object.keys(counts).length > 0;
 
     return (
       <div className="stat-view">
-        <h3 className="stat-title">
-          Overview - Activations per Sensor (last 24h)
-        </h3>
-        {Object.keys(counts).length === 0 ? (
-          <p className="stat-empty">No activations in the last 24 hours.</p>
+        <h3 className="stat-title">Activations per sensor (last 24h)</h3>
+        {!hasData ? (
+          <p className="stat-empty">Nothing in the last 24 hours.</p>
         ) : (
-          <ActivationBarChart counts={counts} />
+          <BarChart countsBySensor={counts} />
         )}
       </div>
     );
   }
 
-  const forSensor = recent.filter((e) => e.device_name === selectedSensor);
-  const buckets = buildHourlyBuckets(forSensor, now);
-  const total = forSensor.length;
+  // single sensor - line chart + total card
+  const forThisSensor = recent.filter(
+    (ev) => ev.device_name === selectedSensor
+  );
+  const buckets = countPerHour(forThisSensor);
+  const total = forThisSensor.length;
+  const avgPerHour = (total / HOURS).toFixed(1);
 
   return (
     <div className="stat-view">
-      <h3 className="stat-title">{selectedSensor} - Activation over Time</h3>
-      <ActivationLineChart buckets={buckets} />
-      <AverageActivationCard total={total} />
+      <h3 className="stat-title">{selectedSensor} - activation over time</h3>
+      <LineChart buckets={buckets} />
+
+      <div className="stat-card">
+        <div className="stat-card-label">Average Activation in 24 hrs</div>
+        <div className="stat-card-value">{total}</div>
+        <div className="stat-card-sub">~{avgPerHour} per hour</div>
+      </div>
     </div>
   );
 }
