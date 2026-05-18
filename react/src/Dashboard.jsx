@@ -8,16 +8,27 @@
  *   Statistics  -> activation-over-time line chart and 24h average for the
  *                  selected sensor, or a per-sensor bar chart for All Sensors.
  *
- * Live motion events come from GET /api/events/ (Django, proxied by nginx).
- * The sidebar's sensor list is persisted to localStorage; the events feed
- * itself is fetched fresh on mount and refreshed on a short interval.
+ * The "Add Test Event" button POSTs a synthetic motion payload to /api/motion/
+ * for whichever sensor is selected in the sidebar (for local QA).
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "./App.css";
 import StatisticsView from "./StatisticsView.jsx";
 
 const EVENT_REFRESH_MS = 10_000;
+
+/** Map sidebar label to API node_id; keeps "Sensor 1" -> "1" for ESP-style ids. */
+function nodeIdForSensorName(name) {
+  const t = name.trim();
+  const m = /^Sensor\s*(\d+)$/i.exec(t);
+  if (m) return m[1];
+  const slug = t.replace(/\s+/g, "-").replace(/[^a-zA-Z0-9-_]/g, "");
+  if (slug) return slug;
+  let h = 0;
+  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) | 0;
+  return "n" + Math.abs(h).toString(36);
+}
 
 function Dashboard() {
   const [sensors, setSensors] = useState(() => {
@@ -43,37 +54,73 @@ function Dashboard() {
   // Each entry: { id, node_id, location, detected_at (ISO), device_name }
   const [events, setEvents] = useState([]);
   const [eventsError, setEventsError] = useState(null);
+  const [testEventPending, setTestEventPending] = useState(false);
+  const [testEventHint, setTestEventHint] = useState(null);
+
+  useEffect(() => {
+    setTestEventHint(null);
+  }, [selectedSensor]);
 
   useEffect(() => {
     localStorage.setItem("sensors", JSON.stringify(sensors));
   }, [sensors]);
 
+  const loadEvents = useCallback(async () => {
+    try {
+      const res = await fetch("/api/events/");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setEvents(Array.isArray(json.events) ? json.events : []);
+      setEventsError(null);
+    } catch (err) {
+      setEventsError(err.message || "Failed to load events");
+    }
+  }, []);
+
   // Pull the latest motion events on mount and on a polling interval so the
   // dashboard stays roughly live without needing a websocket.
   useEffect(() => {
-    let cancelled = false;
+    loadEvents();
+    const id = setInterval(loadEvents, EVENT_REFRESH_MS);
+    return () => clearInterval(id);
+  }, [loadEvents]);
 
-    const load = async () => {
+  const addTestEvent = async () => {
+    if (selectedSensor === "All Sensors") return;
+    setTestEventPending(true);
+    setTestEventHint(null);
+    try {
+      const body = {
+        event_id: `ui-test-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+        node_id: nodeIdForSensorName(selectedSensor),
+        device_name: selectedSensor,
+        location: "Dashboard test",
+        connection: { interrupted: false, signal_strength: -55 },
+        device_status: { battery: 88, firmware_version: "test" },
+      };
+      const res = await fetch("/api/motion/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      let json = {};
       try {
-        const res = await fetch("/api/events/");
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        if (cancelled) return;
-        setEvents(Array.isArray(json.events) ? json.events : []);
-        setEventsError(null);
-      } catch (err) {
-        if (cancelled) return;
-        setEventsError(err.message || "Failed to load events");
+        json = await res.json();
+      } catch {
+        /* non-JSON body */
       }
-    };
-
-    load();
-    const id = setInterval(load, EVENT_REFRESH_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, []);
+      if (!res.ok) {
+        throw new Error(json.message || `HTTP ${res.status}`);
+      }
+      await loadEvents();
+      setTestEventHint("Test event logged for this sensor.");
+      window.setTimeout(() => setTestEventHint(null), 3000);
+    } catch (err) {
+      setTestEventHint(err.message || "Failed to add test event");
+    } finally {
+      setTestEventPending(false);
+    }
+  };
 
   const addSensor = () => {
     const sensorNumber = sensors.length;
@@ -158,7 +205,35 @@ function Dashboard() {
       </div>
 
       <div className="main">
-        <h2>{selectedSensor}</h2>
+        <div className="main-header">
+          <h2 className="main-title">{selectedSensor}</h2>
+          <button
+            type="button"
+            className="test-event-button"
+            disabled={
+              selectedSensor === "All Sensors" || testEventPending
+            }
+            title={
+              selectedSensor === "All Sensors"
+                ? "Select a sensor in the sidebar first"
+                : "POST a motion event for the selected sensor"
+            }
+            onClick={addTestEvent}
+          >
+            {testEventPending ? "Sending…" : "Add Test Event"}
+          </button>
+        </div>
+        {testEventHint && (
+          <p
+            className={
+              testEventHint.startsWith("Test event")
+                ? "test-event-hint ok"
+                : "test-event-hint err"
+            }
+          >
+            {testEventHint}
+          </p>
+        )}
 
         <div className="tab-bar" role="tablist">
           <button

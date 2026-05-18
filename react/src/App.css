@@ -118,6 +118,54 @@
   padding: 20px;
 }
 
+.main-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.main-title {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.test-event-button {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  background: #2d6a4f;
+  border: 1px solid #40916c;
+  border-radius: 4px;
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.test-event-button:hover:not(:disabled) {
+  background: #40916c;
+}
+
+.test-event-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.test-event-hint {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+
+.test-event-hint.ok {
+  color: #6ee7b7;
+}
+
+.test-event-hint.err {
+  color: #ff8080;
+}
+
 /* Tab bar at the top of the main panel: Overview / Statistics */
 .tab-bar {
   display: flex;
