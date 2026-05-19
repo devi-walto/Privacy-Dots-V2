@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# startup.sh — Privacy Dots Boot Script
+# startup.sh — Privacy Dots Boot Script ...
 # ---------------------------------------
 # Runs automatically on Pi boot via systemd.
 # Sets up Wi-Fi access point, then starts the full Docker system.
