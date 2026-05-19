@@ -78,6 +78,20 @@ services:
       - react
       - django
 
+  mosquitto-subscriber:
+    build: ./django
+    container_name: privacydots-mosquitto-subscriber
+    env_file: .env
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    command: python manage.py start_mqtt_listener
+
 volumes:
   postgres_data:
   ntfy_data:
