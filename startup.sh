@@ -42,6 +42,7 @@ AP_PASSWORD="ChangeMe123!"       # Wi-Fi password
 WIFI_IFACE="wlan0"               # Physical Wi-Fi device
 CONNECTION_NAME="Pi-AP"          # Internal name used by the system
 AP_IP_CIDR="192.168.4.1/24"      # IP range for connected devices
+AP_IP="${AP_IP_CIDR%%/*}"        # IP for ap to map basestation domain
 PROJECT_DIR="/home/pi/privacy-dots-v2"
 
 # Create flags to track setup and default password state
@@ -54,6 +55,17 @@ mkdir -p "$STATE_DIR"
 # Run only once: mark that default password is active on first setup
 if [ ! -f "$SETUP_COMPLETE_FLAG" ]; then         # Check if we completed init setup
     echo "[*] First boot detected"
+    # Set the Linux hostname so users can access the base station with:
+    # http://basestation
+    hostnamectl set-hostname basestation
+
+    # Tell connected devices that "basestation" points to the Pi AP IP
+    mkdir -p /etc/NetworkManager/dnsmasq-shared.d
+    
+    # chat helped with this section
+    cat > /etc/NetworkManager/dnsmasq-shared.d/basestation.conf <<EOF
+address=/basestation/$AP_IP
+EOF
 
     touch "$DEFAULT_FLAG"                       # Flag that default password is still being used
     touch "$SETUP_COMPLETE_FLAG"                # Flag that init setup has been completed (doesnt rerun)
@@ -100,7 +112,7 @@ cd "$PROJECT_DIR" || {
     echo "[!] Project directory not found: $PROJECT_DIR"
     exit 1
 }
-docker compose up -d
+docker-compose up -d
 
 # Confirm system is running
 echo "[✔] Privacy Dots V2 startup complete"
