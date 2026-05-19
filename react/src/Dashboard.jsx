@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import "./App.css";
+import Timeline from "./Timeline.jsx";
 
 const API_BASE = "/api";
 
@@ -125,15 +126,16 @@ function Dashboard() {
         {events.length === 0 ? (
           <p>No motion events yet.</p>
         ) : (
-          <ul>
-            {events.map((event) => (
-              <li key={event.event_id || event.id}>
-                <strong>{event.device_name}</strong>: Motion detected
-                {event.location ? ` at ${event.location}` : ""} at{" "}
-                {formatTime(event.detected_at)}
-              </li>
-            ))}
-          </ul>
+          // <ul>
+          //   {events.map((event) => (
+          //     <li key={event.event_id || event.id}>
+          //       <strong>{event.device_name}</strong>: Motion detected
+          //       {event.location ? ` at ${event.location}` : ""} at{" "}
+          //       {formatTime(event.detected_at)}
+          //     </li>
+          //   ))}
+          // </ul>
+          <Timeline events={events} selectedSensor={selectedDevice ? selectedDevice.name : "All Sensors"} />
         )}
       </div>
 
