@@ -28,9 +28,50 @@ URL endpoints defined in event_handler/urls.py:
 import json
 import requests
 from django.http import JsonResponse
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from .models import MotionEvent, Device
+
+
+ONLINE_WINDOW_SECONDS = 120
+
+
+def parse_sensor_timestamp(value):
+    if not value:
+        return None
+    return parse_datetime(str(value))
+
+
+def device_last_seen(device):
+    if device.last_seen:
+        return device.last_seen
+
+    last_event = MotionEvent.objects.filter(device=device).order_by('-detected_at').first()
+    return last_event.detected_at if last_event else device.registered_at
+
+
+def device_to_dict(device):
+    last_seen = device_last_seen(device)
+    is_online = device.status == Device.STATUS_ACTIVE and device.last_seen is not None and (
+        timezone.now() - last_seen
+    ).total_seconds() <= ONLINE_WINDOW_SECONDS
+
+    return {
+        'node_id': device.node_id,
+        'name': device.name,
+        'location': device.location,
+        'is_active': device.is_active,
+        'status': device.status,
+        'is_online': is_online,
+        'last_seen': last_seen.isoformat(),
+        'registered_at': device.registered_at.isoformat(),
+        'battery': device.battery,
+        'firmware_version': device.firmware_version,
+        'signal_strength': device.signal_strength,
+        'connection_interrupted': device.connection_interrupted,
+    }
 
 @csrf_exempt
 def motion_detected(request):
@@ -50,8 +91,8 @@ def motion_detected(request):
             location = data.get('location', 'Unknown')
             event_type = data.get('event_type', 'motion')
             motion = data.get('motion', True)
-            sensor_timestamp = data.get('timestamp')
-            timezone = data.get('timezone', 'UTC')
+            sensor_timestamp = parse_sensor_timestamp(data.get('timestamp'))
+            event_timezone = data.get('timezone', 'UTC')
             
             # 2. Extract Nested Dictionaries safely (defaults to empty dict if missing)
             connection = data.get('connection', {})
@@ -74,36 +115,44 @@ def motion_detected(request):
                     'firmware_version': firmware,
                     'signal_strength': signal_strength,
                     'connection_interrupted': interrupted,
+                    'last_seen': timezone.now(),
+                    'status': Device.STATUS_ACTIVE,
                     'is_active': True
                 }
             )
 
             # 4. Save the motion event with point-in-time data
-            event = MotionEvent.objects.create(
-                event_id=event_id,
-                device=device,
-                node_id=node_id,
-                location=location,
-                event_type=event_type,
-                motion=motion,
-                sensor_timestamp=sensor_timestamp,
-                timezone=timezone,
-                battery_at_event=battery,
-                signal_strength_at_event=signal_strength
-            )
+            event = MotionEvent.objects.filter(event_id=event_id).first() if event_id else None
+            duplicate_event = event is not None
+            if event is None:
+                event = MotionEvent.objects.create(
+                    event_id=event_id,
+                    device=device,
+                    node_id=node_id,
+                    location=location,
+                    event_type=event_type,
+                    motion=motion,
+                    sensor_timestamp=sensor_timestamp,
+                    timezone=event_timezone,
+                    battery_at_event=battery,
+                    signal_strength_at_event=signal_strength
+                )
 
-            # 5. Send push notification to Ntfy
-            requests.post(
-                f"{settings.NTFY_URL}/{settings.NTFY_TOPIC}",
-                headers={"Title": "Motion Detected"},
-                data=f"Motion detected at {location} (Node: {node_id})"
-            )
+            # 5. Send push notification to Ntfy for new events only
+            if not duplicate_event:
+                requests.post(
+                    f"{settings.NTFY_URL}/{settings.NTFY_TOPIC}",
+                    headers={"Title": "Motion Detected"},
+                    data=f"Motion detected at {location} (Node: {node_id})",
+                    timeout=5
+                )
 
             return JsonResponse({
                 'status': 'success', 
                 'db_id': event.id,
                 'sensor_event_id': event.event_id,
-                'device_registered': created
+                'device_registered': created,
+                'duplicate': duplicate_event
             }, status=200)
 
         except json.JSONDecodeError:
@@ -132,10 +181,15 @@ def get_events(request):
         data = [
             {
                 'id': e.id,
+                'event_id': e.event_id,
                 'node_id': e.node_id,
                 'location': e.location,
+                'event_type': e.event_type,
+                'motion': e.motion,
                 'detected_at': e.detected_at.isoformat(),
-                'device_name': e.device.name if e.device else "Unregistered"
+                'device_name': e.device.name if e.device else "Unregistered",
+                'signal_strength': e.signal_strength_at_event,
+                'battery': e.battery_at_event,
             }
             for e in events
         ]
@@ -144,23 +198,78 @@ def get_events(request):
     return JsonResponse({'status': 'error', 'message': 'Only GET requests allowed'}, status=405)
 
 
+@csrf_exempt
 def get_devices(request):
     """
     Returns a list of all registered sensors and their current status.
     Used for the device status dashboard.
     """
     if request.method == 'GET':
-        devices = Device.objects.all()
-        data = [
-            {
-                'node_id': d.node_id,
-                'name': d.name,
-                'location': d.location,
-                'is_active': d.is_active,
-                'registered_at': d.registered_at.isoformat()
-            }
-            for d in devices
-        ]
+        devices = Device.objects.all().order_by('node_id')
+        data = [device_to_dict(d) for d in devices]
         return JsonResponse({'devices': data}, status=200)
 
-    return JsonResponse({'status': 'error', 'message': 'Only GET requests allowed'}, status=405)
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            node_id = str(data.get('node_id', '')).strip()
+            if not node_id:
+                return JsonResponse({'status': 'error', 'message': 'node_id is required'}, status=400)
+
+            device, created = Device.objects.update_or_create(
+                node_id=node_id,
+                defaults={
+                    'name': data.get('name') or node_id,
+                    'location': data.get('location') or 'unassigned',
+                    'last_seen': None,
+                    'status': Device.STATUS_PENDING,
+                    'is_active': True,
+                }
+            )
+            return JsonResponse({
+                'status': 'success',
+                'created': created,
+                'device': device_to_dict(device),
+            }, status=201 if created else 200)
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON payload'}, status=400)
+
+    return JsonResponse({'status': 'error', 'message': 'Only GET and POST requests allowed'}, status=405)
+
+
+@csrf_exempt
+def device_detail(request, node_id):
+    if request.method == 'DELETE':
+        updated = Device.objects.filter(node_id=node_id).update(
+            is_active=False,
+            status=Device.STATUS_REMOVED,
+        )
+        if not updated:
+            return JsonResponse({'status': 'error', 'message': 'Device not found'}, status=404)
+        return JsonResponse({'status': 'success'}, status=200)
+
+    if request.method == 'PATCH':
+        try:
+            data = json.loads(request.body)
+            status = data.get('status')
+            allowed_statuses = {
+                Device.STATUS_PENDING,
+                Device.STATUS_ACTIVE,
+                Device.STATUS_DISABLED,
+                Device.STATUS_REMOVED,
+            }
+            if status not in allowed_statuses:
+                return JsonResponse({'status': 'error', 'message': 'Invalid device status'}, status=400)
+
+            device = Device.objects.filter(node_id=node_id).first()
+            if not device:
+                return JsonResponse({'status': 'error', 'message': 'Device not found'}, status=404)
+
+            device.status = status
+            device.is_active = status not in {Device.STATUS_DISABLED, Device.STATUS_REMOVED}
+            device.save(update_fields=['status', 'is_active'])
+            return JsonResponse({'status': 'success', 'device': device_to_dict(device)}, status=200)
+        except json.JSONDecodeError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid JSON payload'}, status=400)
+
+    return JsonResponse({'status': 'error', 'message': 'Only DELETE and PATCH requests allowed'}, status=405)

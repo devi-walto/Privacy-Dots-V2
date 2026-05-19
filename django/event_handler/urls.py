@@ -25,4 +25,10 @@ urlpatterns = [
 
     # Returns event history to the React dashboard via GET
     path('events/', views.get_events, name='get_events'),
+
+    # Lists sensors and lets the dashboard manually add one
+    path('devices/', views.get_devices, name='get_devices'),
+
+    # Removes a sensor from the active dashboard list
+    path('devices/<str:node_id>/', views.device_detail, name='device_detail'),
 ]
