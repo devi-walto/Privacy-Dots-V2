@@ -1,70 +1,108 @@
-# Getting Started with Create React App
+# Privacy Dots V2 Frontend
+React + Vite frontend for the Privacy Dots V2 Base Station dashboard.
+## Architecture
+Frontend Stack:
+```text
+Browser
+→ Nginx Reverse Proxy
+→ React + Vite Frontend
+→ Django REST API
+→ PostgreSQL
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+ESP32 Event Flow:
 
-## Available Scripts
+ESP32 Nodes
+→ Mosquitto MQTT Broker
+→ Django Event Handler
+→ PostgreSQL / Ntfy Notifications
 
-In the project directory, you can run:
+⸻
 
-### `npm start`
+Frontend Features
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+* React + Vite development environment
+* Docker containerized frontend
+* nginx reverse proxy integration
+* Dashboard UI for node monitoring
+* Sensor activity timeline
+* Local storage sensor persistence
+* Diagnostic connection test page
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+⸻
 
-### `npm test`
+Project Structure
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+react/
+├── public/             # Static frontend assets
+├── src/
+│   ├── assets/         # Images/icons
+│   ├── App.jsx         # Frontend route controller
+│   ├── Dashboard.jsx   # Main dashboard UI
+│   ├── ConnectionTest.jsx
+│   ├── App.css
+│   ├── index.css
+│   └── main.jsx        # React mount entrypoint
+├── Dockerfile
+├── package.json
+└── vite.config.js
 
-### `npm run build`
+⸻
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Available Routes
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+/                   → Main dashboard
+/connection-test   → Service diagnostics page
+/api/              → Django backend API
+/admin/            → Django admin panel
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+⸻
 
-### `npm run eject`
+Development Commands
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+Run containers:
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+docker compose up --build
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+Restart frontend only:
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+docker compose restart react
 
-## Learn More
+Rebuild frontend image:
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+docker compose build react
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+⸻
 
-### Code Splitting
+Vite Development Server
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+The frontend uses Vite instead of Create React App.
 
-### Analyzing the Bundle Size
+Benefits:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+* Faster startup times
+* Faster hot reload (HMR)
+* Simpler configuration
+* Better Docker development workflow
 
-### Making a Progressive Web App
+nginx proxies frontend traffic to the internal Vite server running on:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+react:5173
 
-### Advanced Configuration
+⸻
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+Django Migration Commands
 
-### Deployment
+Run after changing Django models:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+docker exec privacydots-django python manage.py makemigrations
+docker exec privacydots-django python manage.py migrate
 
-### `npm run build` fails to minify
+⸻
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Connectivity Tests
+
+http://localhost
+http://localhost/connection-test
+http://localhost/api/
+http://localhost/admin/
+http://localhost:8080
