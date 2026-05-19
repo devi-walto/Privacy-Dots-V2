@@ -2,11 +2,11 @@
 #include <PubSubClient.h>
 
 // ---------- Wi-Fi ----------
-const char* WIFI_SSID = "MyPiAP";
-const char* WIFI_PASSWORD = "ChangeMe123!";
+const char* WIFI_SSID = "BreadWinner";
+const char* WIFI_PASSWORD = "2511780F3957";
 
 // ---------- MQTT ----------
-const char* MQTT_HOST = "192.168.4.1";
+const char* MQTT_HOST = "172.20.10.3";
 const int MQTT_PORT = 1883;
 
 const char* MOTION_TOPIC = "privacydots/events/motion";
@@ -55,6 +55,7 @@ void connectToWiFi() {
 
 void connectToMQTT() {
   mqttClient.setServer(MQTT_HOST, MQTT_PORT);
+  mqttClient.setKeepAlive(60);
 
   while (!mqttClient.connected()) {
     Serial.print("Connecting to MQTT at ");
@@ -66,6 +67,7 @@ void connectToMQTT() {
 
     if (mqttClient.connect(clientId.c_str())) {
       Serial.println("MQTT connected");
+      mqttClient.loop();
       publishRegister();
     } else {
       Serial.print("MQTT failed, rc=");
@@ -162,6 +164,8 @@ void setup() {
   pinMode(MOTION_PIN, INPUT);
 
   randomSeed(esp_random());
+
+  mqttClient.setBufferSize(512);
 
   connectToWiFi();
   connectToMQTT();

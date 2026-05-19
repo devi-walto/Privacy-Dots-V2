@@ -46,6 +46,8 @@ services:
     build: ./django
     container_name: privacydots-mqtt-listener
     env_file: .env
+    environment:
+      - PYTHONUNBUFFERED=1
     restart: unless-stopped
     command: sh -c "python manage.py migrate && python manage.py run_mqtt_subscriber"
     depends_on:
