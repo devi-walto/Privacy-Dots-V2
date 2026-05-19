@@ -32,3 +32,4 @@ urlpatterns = [
     # Removes a sensor from the active dashboard list
     path('devices/<str:node_id>/', views.device_detail, name='device_detail'),
 ]
+

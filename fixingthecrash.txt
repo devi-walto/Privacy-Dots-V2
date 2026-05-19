@@ -1,0 +1,21 @@
+NEED to fix
+
+1. Add missing /api/devices/ route
+    Frontend calls /api/devices/, but Django does not route it yet, so the dashboard API request fails.
+2. Stop running Vite dev server on the Pi
+    This is the most likely crash cause because Vite dev mode can eat RAM/CPU on a Raspberry Pi.
+3. Check Pi memory/swap
+    If the Pi runs out of RAM during Docker build/startup, it can freeze or crash.
+4. Confirm ALLOWED_HOSTS includes the Pi IP
+    If you access the app through 192.168.x.x or 192.168.4.1, Django may reject requests unless that IP is allowed.
+
+SHOULD probably fix
+
+1. Switch React to production build
+    Build React once with npm run build, then serve static files instead of live dev server.
+2. Add devices/ endpoint comment/docs
+    This prevents the frontend/backend mismatch from happening again.
+3. Use version: "2.4" only on the Pi
+    Your Pi’s old docker-compose needs it, but newer machines may not.
+4. Limit container restart loops
+    If a broken container restarts forever, it can keep hammering the Pi and make crashes worse.
